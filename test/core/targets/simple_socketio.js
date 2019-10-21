@@ -60,8 +60,11 @@ function createServer() {
       MESSAGE_COUNT++;
 
       if (message === 'ping') {
-        cb("pong", {answer: 42});
+        cb('pong', {answer: 42});
       }
+      if (message.sendAck === true) {
+        console.log('Socket.io sending message ack: ', message);
+        ws.emit('ack', message);      }
       if (message === 'count:inc') {
         loopCounter++;
         cb('count', {answer: loopCounter});
