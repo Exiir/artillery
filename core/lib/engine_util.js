@@ -352,7 +352,6 @@ function captureOrMatch(params, response, context, done) {
     L.get(params, 'capture', []),
     L.get(params, 'match', []));
 
-
   async.eachSeries(
     specs,
     function(spec, next) {
@@ -376,7 +375,6 @@ function captureOrMatch(params, response, context, done) {
         }
 
         let extractedValue = extractor(doc, template(expr, context), spec);
-
         if (spec.value) {
           // this is a match spec
           let expected = template(spec.value, context);
