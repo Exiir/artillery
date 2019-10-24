@@ -12,7 +12,7 @@ const io = require('socket.io-client');
 const wildcardPatch = require('socketio-wildcard')(io.Manager);
 
 const deepEqual = require('deep-equal');
-const debug = require('debug')('socketio');
+const debug = console.debug
 const engineUtil = require('./engine_util');
 const EngineHttp = require('./engine_http');
 const template = engineUtil.template;
@@ -58,6 +58,7 @@ function processResponse(ee, data, response, context, callback) {
     let err = 'data is not valid';
     ee.emit('error', err);
     return callback(err, context);
+
   }
 
   // If no capture or match specified, then we consider it a success at this point...
@@ -76,7 +77,6 @@ function processResponse(ee, data, response, context, callback) {
       ee.emit('error', err);
       return callback(err, context);
     }
-
     // Do we have any failed matches?
     let failedMatches = _.filter(result.matches, (v, k) => {
       return !v.success;
@@ -216,6 +216,7 @@ SocketIoEngine.prototype.step = function (requestSpec, ee) {
       let currentResponsesCount = 0;
       let requiredResponsesCountsByChannel = {};
       _.forEach(channelsResponses, function(channelResponses, channel) {
+
         requiredResponsesCountsByChannel[channel] = 0;
         // Expect that messages should be sent in the same order
         const responses = [];
@@ -228,27 +229,42 @@ SocketIoEngine.prototype.step = function (requestSpec, ee) {
             capture: template(channelResponse.capture, context),
             match: template(channelResponse.match, context)
           });
+          
         });
-
         let index = -1;
         // Listen for the socket.io response on the specified channel
         socketio.on(channel, function receive(data) {
-          index++;
-          currentResponsesCount++;
-          processResponse(ee, data, responses[index], context, function(err) {
-            if (!err) {
-              markEndTime(ee, context, startedAt);
-            }
-            // Stop listening on the response channel only if all messages were received or if there is an error
-            if (requiredResponsesCountsByChannel[channel] - 1 === index || err) {
-              socketio.off(channel);
-            }
 
-            // Call the callback function if all channel messages were received or if there is an error
-            if (requiredResponsesCount === currentResponsesCount || err) {
-              callback(err, context);
-            }
-          });
+          // TODO
+          let beforeResponse = true;
+
+        if(requestSpec.emit.beforeResponse) {
+              let processFunc = self.config.processor[requestSpec.emit.beforeResponse];
+              if (processFunc) {
+                beforeResponse = processFunc(requestSpec, ee, data, responses[index], context);
+              }
+        }
+
+
+          if (beforeResponse) {
+            index++;
+            currentResponsesCount++;
+            processResponse(ee, data, responses[index], context, function(err) {
+              if (!err) {
+                markEndTime(ee, context, startedAt);
+              }
+              // Stop listening on the response channel only if all messages were received or if there is an error
+              if (requiredResponsesCountsByChannel[channel] - 1 === index || err) {
+                socketio.off(channel);
+              }
+  
+              // Call the callback function if all channel messages were received or if there is an error
+              console.log(`${currentResponsesCount}/${requiredResponsesCount}`)
+              if (requiredResponsesCount === currentResponsesCount || err) {
+                callback(err, context);
+              }
+            });
+          }
         });
       });
       // Send the data on the specified socket.io channel
